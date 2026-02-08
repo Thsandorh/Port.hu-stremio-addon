@@ -21,6 +21,7 @@ A Stremio catalog addon that pulls movie and series metadata from Port.hu and ex
 - `GET /catalog/:type/:id.json`
 - `GET /catalog/:type/:id/:extra.json`
 - `GET /meta/:type/:id.json`
+- `GET /stream/:type/:id.json`
 
 Examples:
 
@@ -64,3 +65,6 @@ Deploy with Vercel CLI or Git integration.
 ## Error handling behavior
 
 - Catalog endpoint now returns `200` with an empty `metas` array when upstream parsing/fetch fails, preventing Stremio UI hard errors on transient source failures.
+
+
+- Provides an external stream item that opens the title on Port.hu when playback is requested.

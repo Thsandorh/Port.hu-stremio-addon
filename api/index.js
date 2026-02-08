@@ -1,4 +1,4 @@
-const { fetchCatalog, fetchMeta } = require('../src/porthuAdapter')
+const { fetchCatalog, fetchMeta, fetchStreams } = require('../src/porthuAdapter')
 const { manifest } = require('../src/manifest')
 
 function sendJson(res, statusCode, payload, cacheControl) {
@@ -55,6 +55,19 @@ async function handleMeta(type, id, res) {
   }
 }
 
+
+async function handleStream(type, id, res) {
+  if (!['movie', 'series'].includes(type)) return sendJson(res, 200, { streams: [] })
+
+  try {
+    const result = await fetchStreams({ type, id })
+    return sendJson(res, 200, { streams: result.streams || [] }, 'public, max-age=300')
+  } catch (error) {
+    console.error(`stream fetch failed: ${error.message}`)
+    return sendJson(res, 200, { streams: [] }, 'public, max-age=60')
+  }
+}
+
 module.exports = async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost')
@@ -81,6 +94,12 @@ module.exports = async (req, res) => {
     if (metaMatch) {
       const [, type, id] = metaMatch
       return handleMeta(type, decodeURIComponent(id), res)
+    }
+
+    const streamMatch = path.match(/^\/stream\/([^/]+)\/(.+)\.json$/)
+    if (streamMatch) {
+      const [, type, id] = streamMatch
+      return handleStream(type, decodeURIComponent(id), res)
     }
 
     return sendJson(res, 404, { error: 'Not found' })

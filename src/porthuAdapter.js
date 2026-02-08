@@ -9,10 +9,11 @@ const DEFAULT_TIMEOUT_MS = Number(process.env.PORT_HU_HTTP_TIMEOUT_MS || 12000)
 
 const CATALOG_URLS = {
   movie: ['https://port.hu/film', 'https://port.hu/mozi', 'https://port.hu'],
-  series: ['https://port.hu/tv', 'https://port.hu/sorozat', 'https://port.hu']
+  series: ['https://port.hu/sorozat', 'https://port.hu/tv', 'https://port.hu']
 }
 
 const META_CACHE = new Map()
+const DETAIL_CACHE = new Map()
 
 const http = axios.create({
   timeout: DEFAULT_TIMEOUT_MS,
@@ -52,8 +53,12 @@ function absolutize(baseUrl, maybeRelative) {
 
 function extractEntityId(url) {
   const text = String(url || '')
-  const m = text.match(/\/(movie|episode|person|event)-([0-9]+)/i)
-  if (m) return `${m[1].toLowerCase()}-${m[2]}`
+  const movie = text.match(/movie-([0-9]+)/i)
+  if (movie) return `movie-${movie[1]}`
+  const episode = text.match(/episode-([0-9]+)/i)
+  if (episode) return `episode-${episode[1]}`
+  const event = text.match(/event-([0-9]+)/i)
+  if (event) return `event-${event[1]}`
   return null
 }
 
@@ -121,15 +126,16 @@ function parseJsonLdBlocks($, pageUrl) {
   return items
 }
 
+function isPosterUrl(url) {
+  const u = String(url || '')
+  if (!u) return false
+  if (u.includes('/img/agelimit/')) return false
+  return /\.(jpg|jpeg|png|webp)(\?|$)/i.test(u) || u.includes('/images/')
+}
+
 function parseDomCards($, pageUrl) {
   const items = []
-  const cardSelectors = [
-    'a[href*="/adatlap/film/"]',
-    'a[href*="/adatlap/sorozat/"]',
-    'article a[href]',
-    '.card a[href]',
-    '.item a[href]'
-  ]
+  const cardSelectors = ['a[href*="/adatlap/film/"]', 'a[href*="/adatlap/sorozat/"]', 'article a[href]']
 
   for (const sel of cardSelectors) {
     $(sel).each((_, el) => {
@@ -137,35 +143,43 @@ function parseDomCards($, pageUrl) {
       const canonical = absolutize(pageUrl, href)
       if (!canonical || !canonical.includes('/adatlap/')) return
 
-      const root = $(el).closest('article, .card, .item, li, div')
-      const name = sanitizeText($(el).attr('title') || root.find('h2, h3, h4').first().text() || $(el).text())
+      const root = $(el).closest('article, .event-holder, .event-card, .card, .item, li, div')
+      const rawName =
+        $(el).attr('title') ||
+        $(el).attr('aria-label') ||
+        root.find('h1, h2, h3, h4, .title').first().text() ||
+        $(el).text()
+      const name = sanitizeText(rawName)
       if (!name || name.length < 2) return
 
-      const img = root.find('img').first()
-      const poster = absolutize(
-        pageUrl,
-        img.attr('src') || img.attr('data-src') || img.attr('data-original') || img.attr('data-lazy')
-      )
-      const description = sanitizeText(
-        root.find('p, .description, .lead, [class*="desc"]').first().text()
-      )
-      const releaseInfo = sanitizeText(
-        root.find('time').attr('datetime') ||
-          root.find('time').text() ||
-          root.find('[class*="year"], [class*="date"]').first().text()
-      )
+      const img = root.find('img').toArray().map((node) => $(node))
+      let poster = null
+      for (const tag of img) {
+        const candidate = absolutize(
+          pageUrl,
+          tag.attr('src') || tag.attr('data-src') || tag.attr('data-original') || tag.attr('data-lazy')
+        )
+        if (isPosterUrl(candidate)) {
+          poster = candidate
+          break
+        }
+      }
 
       items.push({
         name,
         url: canonical,
         poster,
-        description,
-        releaseInfo,
+        description: sanitizeText(root.find('p, .description, .lead, [class*="desc"]').first().text()),
+        releaseInfo: sanitizeText(
+          root.find('time').attr('datetime') ||
+            root.find('time').text() ||
+            root.find('[class*="year"], [class*="date"]').first().text()
+        ),
         genre: ''
       })
     })
 
-    if (items.length >= 250) break
+    if (items.length >= 350) break
   }
 
   return items
@@ -212,6 +226,7 @@ function dedupeMetas(metas) {
     const prev = byId.get(meta.id)
     byId.set(meta.id, {
       ...prev,
+      name: prev.name.length >= meta.name.length ? prev.name : meta.name,
       poster: prev.poster || meta.poster,
       description: prev.description || meta.description,
       releaseInfo: prev.releaseInfo || meta.releaseInfo,
@@ -221,6 +236,41 @@ function dedupeMetas(metas) {
   }
 
   return [...byId.values()]
+}
+
+async function fetchDetailHints(detailUrl) {
+  const url = canonicalizeUrl(detailUrl)
+  if (!url) return {}
+  if (DETAIL_CACHE.has(url)) return DETAIL_CACHE.get(url)
+
+  try {
+    const { data } = await http.get(url)
+    const $ = cheerio.load(data)
+    const hint = {
+      poster: absolutize(url, $('meta[property="og:image"]').attr('content')),
+      description: sanitizeText(
+        $('meta[property="og:description"]').attr('content') ||
+          $('meta[name="description"]').attr('content')
+      ),
+      name: sanitizeText($('meta[property="og:title"]').attr('content') || $('h1').first().text())
+    }
+    DETAIL_CACHE.set(url, hint)
+    return hint
+  } catch {
+    const empty = {}
+    DETAIL_CACHE.set(url, empty)
+    return empty
+  }
+}
+
+async function enrichRows(rows) {
+  const missing = rows.filter((r) => !r.poster && r.url).slice(0, 50)
+  for (const row of missing) {
+    const hint = await fetchDetailHints(row.url)
+    if (!row.poster && isPosterUrl(hint.poster)) row.poster = hint.poster
+    if (!row.description && hint.description) row.description = hint.description
+    if ((!row.name || row.name.length < 2) && hint.name) row.name = hint.name
+  }
 }
 
 async function fetchOneCatalogPage(url) {
@@ -240,11 +290,12 @@ async function fetchCatalog({ type, genre, skip = 0, limit = 50 }) {
     try {
       const part = await fetchOneCatalogPage(url)
       rows.push(...part)
-      if (rows.length >= skip + limit + 80) break
     } catch (error) {
       errors.push(`${url}: ${error.message}`)
     }
   }
+
+  await enrichRows(rows)
 
   const metas = dedupeMetas(rows.map((r) => toMeta(type, r)).filter(Boolean))
     .filter((meta) => {
@@ -273,20 +324,37 @@ async function fetchCatalog({ type, genre, skip = 0, limit = 50 }) {
 async function fetchMeta({ type, id }) {
   if (META_CACHE.has(id)) return { meta: META_CACHE.get(id) }
 
-  const movieResult = await fetchCatalog({ type: type || 'movie', limit: 80, skip: 0 })
-  const fromMovie = movieResult.metas.find((m) => m.id === id)
-  if (fromMovie) return { meta: fromMovie }
+  const primary = await fetchCatalog({ type: type || 'movie', limit: 120, skip: 0 })
+  const primaryMatch = primary.metas.find((m) => m.id === id)
+  if (primaryMatch) return { meta: primaryMatch }
 
-  const seriesResult = await fetchCatalog({ type: 'series', limit: 80, skip: 0 })
-  const fromSeries = seriesResult.metas.find((m) => m.id === id)
-  if (fromSeries) return { meta: fromSeries }
+  const secondaryType = type === 'series' ? 'movie' : 'series'
+  const secondary = await fetchCatalog({ type: secondaryType, limit: 120, skip: 0 })
+  const secondaryMatch = secondary.metas.find((m) => m.id === id)
+  if (secondaryMatch) return { meta: secondaryMatch }
 
   return { meta: null }
+}
+
+async function fetchStreams({ type, id }) {
+  const { meta } = await fetchMeta({ type, id })
+  if (!meta?.website) return { streams: [] }
+
+  return {
+    streams: [
+      {
+        name: 'Port.hu',
+        title: 'Open on Port.hu',
+        externalUrl: meta.website
+      }
+    ]
+  }
 }
 
 module.exports = {
   fetchCatalog,
   fetchMeta,
+  fetchStreams,
   fetchOneCatalogPage,
   parseJsonLdBlocks,
   parseDomCards,

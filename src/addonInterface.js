@@ -1,5 +1,5 @@
 const { addonBuilder } = require('stremio-addon-sdk')
-const { fetchCatalog, fetchMeta, SOURCE_NAME } = require('./porthuAdapter')
+const { fetchCatalog, fetchMeta, fetchStreams, SOURCE_NAME } = require('./porthuAdapter')
 const { manifest } = require('./manifest')
 
 function createAddonInterface() {
@@ -43,6 +43,18 @@ function createAddonInterface() {
       return { meta: null }
     }
   })
+
+  builder.defineStreamHandler(async ({ type, id }) => {
+    if (!['movie', 'series'].includes(type)) return { streams: [] }
+
+    try {
+      return fetchStreams({ type, id })
+    } catch (error) {
+      console.error(`[${SOURCE_NAME}] stream handler failed: ${error.message}`)
+      return { streams: [] }
+    }
+  })
+
   return builder.getInterface()
 }
 

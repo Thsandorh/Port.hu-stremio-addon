@@ -1,6 +1,6 @@
 {
   "name": "porthu-stremio-addon",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "description": "Stremio catalog addon for Port.hu sourced movie and series metadata",
   "main": "src/addon.js",
