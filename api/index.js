@@ -9,7 +9,7 @@ function sendJson(res, statusCode, payload, cacheControl) {
   res.end(JSON.stringify(payload))
 }
 
-function parseExtra(extraStr) {
+function parseExtraString(extraStr) {
   if (!extraStr) return {}
 
   return extraStr.split('&').reduce((acc, pair) => {
@@ -22,6 +22,14 @@ function parseExtra(extraStr) {
   }, {})
 }
 
+function parseExtraFromQuery(searchParams) {
+  const extra = {}
+  for (const [key, value] of searchParams.entries()) {
+    extra[key] = value
+  }
+  return extra
+}
+
 module.exports = async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost')
@@ -31,10 +39,20 @@ module.exports = async (req, res) => {
       return sendJson(res, 200, addonInterface.manifest, 'public, max-age=300')
     }
 
-    const m = path.match(/^\/catalog\/([^/]+)\/([^/]+)\/(.+)\.json$/)
-    if (m) {
-      const [, type, id, extraEncoded] = m
-      const extra = parseExtra(extraEncoded)
+    const catalogWithExtra = path.match(/^\/catalog\/([^/]+)\/([^/]+)\/(.+)\.json$/)
+    if (catalogWithExtra) {
+      const [, type, id, extraEncoded] = catalogWithExtra
+      const pathExtra = parseExtraString(extraEncoded)
+      const queryExtra = parseExtraFromQuery(url.searchParams)
+      const extra = { ...pathExtra, ...queryExtra }
+      const payload = await addonInterface.catalog({ type, id, extra })
+      return sendJson(res, 200, payload, 'public, s-maxage=300, stale-while-revalidate=600')
+    }
+
+    const catalogWithoutExtra = path.match(/^\/catalog\/([^/]+)\/([^/]+)\.json$/)
+    if (catalogWithoutExtra) {
+      const [, type, id] = catalogWithoutExtra
+      const extra = parseExtraFromQuery(url.searchParams)
       const payload = await addonInterface.catalog({ type, id, extra })
       return sendJson(res, 200, payload, 'public, s-maxage=300, stale-while-revalidate=600')
     }

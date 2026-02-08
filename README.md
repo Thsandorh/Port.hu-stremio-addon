@@ -11,14 +11,19 @@ A Stremio catalog addon that pulls movie and series metadata from Port.hu and ex
 - Stable deterministic meta IDs
 - Deduplication and optional genre filtering
 - Vercel-compatible API route included
+- Supports both Stremio catalog URL variants:
+  - `/catalog/:type/:id.json`
+  - `/catalog/:type/:id/:extra.json`
 
 ## Endpoints
 
 - `GET /manifest.json`
+- `GET /catalog/:type/:id.json`
 - `GET /catalog/:type/:id/:extra.json`
 
 Examples:
 
+- `/catalog/movie/porthu-movie.json`
 - `/catalog/movie/porthu-movie/skip=0.json`
 - `/catalog/series/porthu-series/genre=drama&skip=0.json`
 
@@ -40,7 +45,7 @@ This repository includes:
 - `api/index.js` serverless entrypoint
 - `vercel.json` route mapping
 
-Deploy normally with Vercel CLI or Git integration.
+Deploy with Vercel CLI or Git integration.
 
 ## Environment variables
 
@@ -52,3 +57,4 @@ Deploy normally with Vercel CLI or Git integration.
 
 - Source HTML structure may change over time; update selectors in `parseDomCards` when needed.
 - Respect source terms of use and robots policy before production use.
+- See `docs/porthu-analysis.md` for live Playwright findings.

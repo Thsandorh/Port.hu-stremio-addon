@@ -8,8 +8,8 @@ const SOURCE_NAME = 'port.hu'
 const DEFAULT_TIMEOUT_MS = Number(process.env.PORT_HU_HTTP_TIMEOUT_MS || 12000)
 
 const CATALOG_URLS = {
-  movie: ['https://port.hu/mozi', 'https://port.hu/filmek', 'https://port.hu'],
-  series: ['https://port.hu/sorozatok', 'https://port.hu/tv', 'https://port.hu']
+  movie: ['https://port.hu/film', 'https://port.hu/mozi', 'https://port.hu'],
+  series: ['https://port.hu/tv', 'https://port.hu/sorozat', 'https://port.hu']
 }
 
 const http = axios.create({
@@ -103,6 +103,8 @@ function parseDomCards($, pageUrl) {
     '.card a[href]',
     '.item a[href]',
     '[data-testid*="card"] a[href]',
+    'a[href*="/adatlap/film/"]',
+    'a[href*="/adatlap/sorozat/"]',
     'a[href*="film"]',
     'a[href*="sorozat"]'
   ]
