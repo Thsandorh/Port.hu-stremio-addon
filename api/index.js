@@ -1,6 +1,5 @@
-const { createAddonInterface } = require('../src/addonInterface')
-
-const addonInterface = createAddonInterface()
+const { fetchCatalog } = require('../src/porthuAdapter')
+const { manifest } = require('../src/manifest')
 
 function sendJson(res, statusCode, payload, cacheControl) {
   res.statusCode = statusCode
@@ -11,23 +10,37 @@ function sendJson(res, statusCode, payload, cacheControl) {
 
 function parseExtraString(extraStr) {
   if (!extraStr) return {}
-
   return extraStr.split('&').reduce((acc, pair) => {
     const [rawKey, rawValue = ''] = pair.split('=')
     if (!rawKey) return acc
-    const key = decodeURIComponent(rawKey)
-    const value = decodeURIComponent(rawValue)
-    acc[key] = value
+    acc[decodeURIComponent(rawKey)] = decodeURIComponent(rawValue)
     return acc
   }, {})
 }
 
 function parseExtraFromQuery(searchParams) {
   const extra = {}
-  for (const [key, value] of searchParams.entries()) {
-    extra[key] = value
-  }
+  for (const [key, value] of searchParams.entries()) extra[key] = value
   return extra
+}
+
+function isValidCatalog(type, id) {
+  return (type === 'movie' && id === 'porthu-movie') || (type === 'series' && id === 'porthu-series')
+}
+
+async function handleCatalog(type, id, extra, res) {
+  if (!isValidCatalog(type, id)) return sendJson(res, 200, { metas: [] })
+
+  const limit = Math.min(Number(process.env.CATALOG_LIMIT || 50), 100)
+  const skip = Math.max(Number(extra.skip || 0), 0)
+
+  try {
+    const result = await fetchCatalog({ type, genre: extra.genre, skip, limit })
+    return sendJson(res, 200, { metas: result.metas }, 'public, s-maxage=300, stale-while-revalidate=600')
+  } catch (error) {
+    console.error(`catalog fetch failed: ${error.message}`)
+    return sendJson(res, 200, { metas: [] }, 'public, max-age=60')
+  }
 }
 
 module.exports = async (req, res) => {
@@ -36,25 +49,20 @@ module.exports = async (req, res) => {
     const path = url.pathname
 
     if (path === '/' || path === '/manifest.json') {
-      return sendJson(res, 200, addonInterface.manifest, 'public, max-age=300')
+      return sendJson(res, 200, manifest, 'public, max-age=300')
     }
 
-    const catalogWithExtra = path.match(/^\/catalog\/([^/]+)\/([^/]+)\/(.+)\.json$/)
-    if (catalogWithExtra) {
-      const [, type, id, extraEncoded] = catalogWithExtra
-      const pathExtra = parseExtraString(extraEncoded)
-      const queryExtra = parseExtraFromQuery(url.searchParams)
-      const extra = { ...pathExtra, ...queryExtra }
-      const payload = await addonInterface.catalog({ type, id, extra })
-      return sendJson(res, 200, payload, 'public, s-maxage=300, stale-while-revalidate=600')
+    const withExtra = path.match(/^\/catalog\/([^/]+)\/([^/]+)\/(.+)\.json$/)
+    if (withExtra) {
+      const [, type, id, extraEncoded] = withExtra
+      const extra = { ...parseExtraString(extraEncoded), ...parseExtraFromQuery(url.searchParams) }
+      return handleCatalog(type, id, extra, res)
     }
 
-    const catalogWithoutExtra = path.match(/^\/catalog\/([^/]+)\/([^/]+)\.json$/)
-    if (catalogWithoutExtra) {
-      const [, type, id] = catalogWithoutExtra
-      const extra = parseExtraFromQuery(url.searchParams)
-      const payload = await addonInterface.catalog({ type, id, extra })
-      return sendJson(res, 200, payload, 'public, s-maxage=300, stale-while-revalidate=600')
+    const withoutExtra = path.match(/^\/catalog\/([^/]+)\/([^/]+)\.json$/)
+    if (withoutExtra) {
+      const [, type, id] = withoutExtra
+      return handleCatalog(type, id, parseExtraFromQuery(url.searchParams), res)
     }
 
     return sendJson(res, 404, { error: 'Not found' })

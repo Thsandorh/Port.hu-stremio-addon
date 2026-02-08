@@ -58,3 +58,8 @@ Deploy with Vercel CLI or Git integration.
 - Source HTML structure may change over time; update selectors in `parseDomCards` when needed.
 - Respect source terms of use and robots policy before production use.
 - See `docs/porthu-analysis.md` for live Playwright findings.
+
+
+## Error handling behavior
+
+- Catalog endpoint now returns `200` with an empty `metas` array when upstream parsing/fetch fails, preventing Stremio UI hard errors on transient source failures.
