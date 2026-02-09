@@ -34,6 +34,11 @@ function sanitizeText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim()
 }
 
+function cleanTitle(title) {
+  // Remove leading rank numbers like "95 Title", "95. Title", "95) Title", etc.
+  return sanitizeText(title).replace(/^\d+[\.\)\s]+\s*/, '')
+}
+
 function absolutize(base, href) {
   if (!href) return null
   try {
@@ -71,23 +76,42 @@ function upscalePosterUrl(posterUrl) {
 function extractPosterFromRoot($, root, pageUrl) {
   const candidates = []
 
+  // Check picture elements first (modern lazy loading)
+  root.find('picture source, picture img').each((_, el) => {
+    const elem = $(el)
+    candidates.push(elem.attr('data-srcset'))
+    candidates.push(elem.attr('srcset'))
+    candidates.push(elem.attr('data-src'))
+    candidates.push(elem.attr('src'))
+  })
+
+  // Check all img elements
   root.find('img').each((_, img) => {
     const el = $(img)
     candidates.push(el.attr('data-original'))
     candidates.push(el.attr('data-src'))
+    candidates.push(el.attr('data-lazy'))
+    candidates.push(el.attr('data-lazy-src'))
     candidates.push(pickBestSrcFromSrcset(el.attr('data-srcset')))
     candidates.push(el.attr('src'))
     candidates.push(pickBestSrcFromSrcset(el.attr('srcset')))
   })
 
-  root.find('[data-src]').each((_, el) => candidates.push($(el).attr('data-src')))
+  // Check other lazy-loading patterns
+  root.find('[data-src], [data-lazy-src], [data-original]').each((_, el) => {
+    candidates.push($(el).attr('data-src'))
+    candidates.push($(el).attr('data-lazy-src'))
+    candidates.push($(el).attr('data-original'))
+  })
+
+  // Check background images
   root.find('[style*="background-image"]').each((_, el) => candidates.push(extractUrlFromStyle($(el).attr('style'))))
 
   const resolved = candidates
     .map((v) => absolutize(pageUrl, v))
     .filter(Boolean)
-    .filter((v) => /\.(jpe?g|png|webp)(\?|$)/i.test(v))
-    .filter((v) => !/logo|icon|sprite|ajax-loader/i.test(v))
+    .filter((v) => /\.(jpe?g|png|webp|gif)(\?|$)/i.test(v))
+    .filter((v) => !/logo|icon|sprite|ajax-loader|placeholder/i.test(v))
 
   const prioritized = resolved.sort((a, b) => {
     const sa = /\/static\/thumb\/|\/profiles\//i.test(a) ? 1 : 0
@@ -121,9 +145,10 @@ function parsePage(html, url) {
 
     const root = $(el).closest('.item, article, .card, .movie-box, li, div')
     const itemRoot = root.closest('.item').length ? root.closest('.item') : root
-    const title = sanitizeText(
+    const rawTitle = sanitizeText(
       $(el).attr('title') || $(el).attr('aria-label') || itemRoot.find('h1,h2,h3,h4,.title').first().text() || $(el).text()
     )
+    const title = cleanTitle(rawTitle)
     if (!title || title.length < 2) return
 
     const poster = extractPosterFromRoot($, itemRoot, url)
