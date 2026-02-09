@@ -4,7 +4,7 @@ A Stremio catalog addon that pulls movie and series metadata from Port.hu and ex
 
 ## Features
 
-- Movie and series catalogs (`porthu-movie`, `porthu-series`)
+- Single mixed catalog (`porthu-mixed`) containing both movies and series
 - Multiple extraction strategies for source resilience:
   - JSON-LD parsing (`Movie`, `TVSeries`, `ItemList`)
   - DOM card-style parsing fallback
@@ -26,9 +26,9 @@ A Stremio catalog addon that pulls movie and series metadata from Port.hu and ex
 
 Examples:
 
-- `/catalog/movie/porthu-movie.json`
-- `/catalog/movie/porthu-movie/skip=0.json`
-- `/catalog/series/porthu-series/genre=drama&skip=0.json`
+- `/catalog/movie/porthu-mixed.json`
+- `/catalog/movie/porthu-mixed/skip=0.json`
+- `/catalog/movie/porthu-mixed/genre=drama&skip=0.json`
 
 ## Local development
 

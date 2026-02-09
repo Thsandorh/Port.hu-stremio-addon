@@ -25,7 +25,7 @@ function parseExtraFromQuery(searchParams) {
 }
 
 function isValidCatalog(type, id) {
-  return (type === 'movie' && id === 'porthu-movie') || (type === 'series' && id === 'porthu-series')
+  return type === 'movie' && id === 'porthu-mixed'
 }
 
 async function handleCatalog(type, id, extra, res) {
@@ -35,8 +35,12 @@ async function handleCatalog(type, id, extra, res) {
   const skip = Math.max(Number(extra.skip || 0), 0)
 
   try {
-    const result = await fetchCatalog({ type, genre: extra.genre, skip, limit })
-    return sendJson(res, 200, { metas: result.metas }, 'public, s-maxage=300, stale-while-revalidate=600')
+    const [movieResult, seriesResult] = await Promise.all([
+      fetchCatalog({ type: 'movie', genre: extra.genre, skip: 0, limit: 200 }),
+      fetchCatalog({ type: 'series', genre: extra.genre, skip: 0, limit: 200 })
+    ])
+    const metas = [...movieResult.metas, ...seriesResult.metas].slice(skip, skip + limit)
+    return sendJson(res, 200, { metas }, 'public, s-maxage=300, stale-while-revalidate=600')
   } catch (error) {
     console.error(`catalog fetch failed: ${error.message}`)
     return sendJson(res, 200, { metas: [] }, 'public, max-age=60')
