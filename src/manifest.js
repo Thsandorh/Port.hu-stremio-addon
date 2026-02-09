@@ -11,14 +11,7 @@ function createManifest(config) {
     resources: ['catalog', 'meta', 'stream'],
     types: ['movie', 'series'],
     idPrefixes: ['tt', 'mafab:', 'porthu:'],
-    catalogs: [
-      {
-        type: 'movie',
-        id: 'hu-mixed',
-        name: 'Film és sorozat',
-        extra: [{ name: 'genre' }, { name: 'skip' }]
-      }
-    ],
+    catalogs,
     behaviorHints: {
       configurable: true,
       configurationRequired: false

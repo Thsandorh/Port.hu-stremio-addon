@@ -70,7 +70,8 @@ function getRequestOrigin(req) {
 function renderConfigureHtml(origin, config) {
   const token = encodeConfig(config)
   const manifestUrl = `${origin}/${token}/manifest.json`
-  const stremioUrl = `stremio://${manifestUrl}`
+  const stremioManifest = manifestUrl.replace(/^https?:\/\//, '')
+  const stremioUrl = `stremio://${stremioManifest}`
 
   return `<!doctype html>
 <html lang="en">
@@ -126,7 +127,7 @@ function renderConfigureHtml(origin, config) {
     const token = btoa(JSON.stringify(cfg)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
     const manifest = location.origin + '/' + token + '/manifest.json'
     manifestEl.textContent = manifest
-    installBtn.href = 'stremio://' + manifest
+    installBtn.href = 'stremio://' + manifest.replace(/^https?:\/\//, '')
   })
 </script>
 </body>
@@ -160,7 +161,7 @@ module.exports = async (req, res) => {
       const noExtra = id && id.endsWith('.json')
       const catalogId = noExtra ? id.slice(0, -5) : id
 
-      if (type !== 'movie' || catalogId !== 'hu-mixed') return sendJson(res, 200, { metas: [] })
+      if (type !== 'movie') return sendJson(res, 200, { metas: [] })
 
       const extra = {
         ...(extraPath ? parseExtraString(extraPath) : {}),
@@ -169,7 +170,7 @@ module.exports = async (req, res) => {
 
       const limit = Math.min(Number(process.env.CATALOG_LIMIT || 50), 100)
       const skip = Math.max(Number(extra.skip || 0), 0)
-      const { metas } = await fetchCatalogFromSources(config, { genre: extra.genre, skip, limit })
+      const { metas } = await fetchCatalogFromSources(config, { catalogId, genre: extra.genre, skip, limit })
       return sendJson(res, 200, { metas }, 'public, s-maxage=300, stale-while-revalidate=600')
     }
 
@@ -194,4 +195,4 @@ module.exports = async (req, res) => {
   }
 }
 
-module.exports._internals = { getRequestOrigin }
+module.exports._internals = { getRequestOrigin, renderConfigureHtml }

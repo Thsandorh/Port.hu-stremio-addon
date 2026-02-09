@@ -2,7 +2,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 
 const apiHandler = require('../api/index')
-const { getRequestOrigin } = apiHandler._internals
+const { getRequestOrigin, renderConfigureHtml } = apiHandler._internals
 
 test('getRequestOrigin prefers forwarded headers on deployment', () => {
   const origin = getRequestOrigin({
@@ -23,4 +23,13 @@ test('getRequestOrigin falls back to host header', () => {
   })
 
   assert.equal(origin, 'http://localhost:7000')
+})
+
+test('configure html stremio link does not include nested https protocol', () => {
+  const html = renderConfigureHtml('https://porthu-addon.vercel.app', {
+    sources: { mafab: true, porthu: false }
+  })
+
+  assert.match(html, /stremio:\/\/porthu-addon\.vercel\.app\//)
+  assert.doesNotMatch(html, /stremio:\/\/https:\/\//)
 })

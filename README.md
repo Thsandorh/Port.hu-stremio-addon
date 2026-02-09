@@ -8,9 +8,10 @@ Configurable Stremio addon with a professional configure page and source selecti
 - Configure UI with source checkboxes:
   - ✅ Mafab.hu (default enabled)
   - ⬜ Port.hu (default disabled)
-- "Install in Stremio" button generating config-specific manifest URL
+- "Install in Stremio" button generating config-specific manifest URL and valid `stremio://` deep link.
 - On Vercel deployment, configure page links are generated from forwarded host/proto headers (no localhost URLs).
-- One mixed catalog: `Film és sorozat` (`hu-mixed`)
+- Source-aware catalogs (Mafab categories + optional Port.hu mixed catalog).
+- Mafab and Port.hu catalogs are always kept separate (no cross-source aggregated catalog).
 - `catalog`, `meta`, and `stream` resources
 - Source adapters:
   - `src/mafabAdapter.js`
