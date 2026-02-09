@@ -161,7 +161,7 @@ module.exports = async (req, res) => {
       const noExtra = id && id.endsWith('.json')
       const catalogId = noExtra ? id.slice(0, -5) : id
 
-      if (type !== 'movie') return sendJson(res, 200, { metas: [] })
+      if (type !== 'movie' || catalogId !== 'hu-mixed') return sendJson(res, 200, { metas: [] })
 
       const extra = {
         ...(extraPath ? parseExtraString(extraPath) : {}),

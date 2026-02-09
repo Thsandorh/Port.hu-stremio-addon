@@ -2,7 +2,6 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 
 const apiHandler = require('../api/index')
-const { encodeConfig } = require('../src/config')
 const { getRequestOrigin, renderConfigureHtml } = apiHandler._internals
 
 test('getRequestOrigin prefers forwarded headers on deployment', () => {
