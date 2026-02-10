@@ -70,68 +70,6 @@ function absolutize(base, href) {
   }
 }
 
-function extractUrlFromStyle(styleValue) {
-  const m = String(styleValue || '').match(/background-image\s*:\s*url\((['"]?)([^)'"\s]+)\1\)/i)
-  return m ? m[2] : null
-}
-
-function pickBestSrcFromSrcset(srcset) {
-  const candidates = String(srcset || '')
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const [url, size = '0w'] = part.split(/\s+/)
-      const score = Number(String(size).replace(/[^0-9]/g, '')) || 0
-      return { url, score }
-    })
-    .sort((a, b) => b.score - a.score)
-  return candidates[0]?.url || null
-}
-
-function upscalePosterUrl(posterUrl) {
-  const url = String(posterUrl || '')
-  if (!url) return null
-  const m = url.match(/\/static\/thumb\/w(\d+)\//i)
-  if (!m) return url
-
-  const width = Number(m[1] || 0)
-  if (!Number.isFinite(width) || width <= 0) return url
-  if (width >= 500) return url
-
-  return url.replace(/\/static\/thumb\/w\d+\//i, '/static/thumb/w500/')
-}
-
-function extractPosterFromRoot($, root, pageUrl) {
-  const candidates = []
-
-  root.find('img').each((_, img) => {
-    const el = $(img)
-    candidates.push(el.attr('data-original'))
-    candidates.push(el.attr('data-src'))
-    candidates.push(pickBestSrcFromSrcset(el.attr('data-srcset')))
-    candidates.push(el.attr('src'))
-    candidates.push(pickBestSrcFromSrcset(el.attr('srcset')))
-  })
-
-  root.find('[data-src]').each((_, el) => candidates.push($(el).attr('data-src')))
-  root.find('[style*="background-image"]').each((_, el) => candidates.push(extractUrlFromStyle($(el).attr('style'))))
-
-  const resolved = candidates
-    .map((v) => absolutize(pageUrl, v))
-    .filter(Boolean)
-    .filter((v) => /\.(jpe?g|png|webp)(\?|$)/i.test(v))
-    .filter((v) => !/logo|icon|sprite|ajax-loader/i.test(v))
-
-  const prioritized = resolved.sort((a, b) => {
-    const sa = /\/static\/thumb\/|\/profiles\//i.test(a) ? 1 : 0
-    const sb = /\/static\/thumb\/|\/profiles\//i.test(b) ? 1 : 0
-    return sb - sa
-  })
-
-  return upscalePosterUrl(prioritized[0] || null)
-}
-
 function extractImdbId(value) {
   const m = String(value || '').match(/tt[0-9]{5,10}/i)
   return m ? m[0].toLowerCase() : null
@@ -139,10 +77,6 @@ function extractImdbId(value) {
 
 function parseDetailHints(html, pageUrl) {
   const $ = cheerio.load(html)
-  const ogImage =
-    $('meta[property="og:image"]').attr('content') ||
-    $('meta[name="twitter:image"]').attr('content') ||
-    null
   const ogDescription =
     $('meta[property="og:description"]').attr('content') ||
     $('meta[name="description"]').attr('content') ||
@@ -154,22 +88,10 @@ function parseDetailHints(html, pageUrl) {
     null
 
   return {
-    poster: upscalePosterUrl(absolutize(pageUrl, ogImage)),
     description: sanitizeText(ogDescription),
     name: sanitizeText(ogTitle),
     imdbId: extractImdbId(imdbLink || html)
   }
-}
-
-function posterQualityScore(url) {
-  const value = String(url || '')
-  if (!value) return 0
-  let score = 1
-  if (/\/static\/[^?]*\.(jpe?g|png|webp)(\?|$)/i.test(value)) score += 1
-  if (/\/static\/thumb\//i.test(value)) score -= 1
-  if (/\/static\/profiles\//i.test(value)) score += 3
-  if (/\/static\/thumb\/w\d+\/[0-9]{4}t\//i.test(value)) score -= 2
-  return score
 }
 
 async function fetchDetailHints(detailUrl) {
@@ -204,9 +126,6 @@ async function enrichRows(rows, { maxItems = 30, concurrency = 4 } = {}) {
       const hints = await fetchDetailHints(row.url)
       if (!hints) continue
 
-      if (hints.poster && posterQualityScore(hints.poster) > posterQualityScore(row.poster)) {
-        row.poster = hints.poster
-      }
       if (!row.imdbId && hints.imdbId) row.imdbId = hints.imdbId
       if (!hasUsefulDescription(row.description) && hints.description) row.description = hints.description
       if (hints.name && (!row.name || row.name.length < 2)) row.name = hints.name
@@ -228,17 +147,6 @@ function toId(url, imdb) {
 function parsePage(html, url) {
   const $ = cheerio.load(html)
   const rows = []
-  const posterByDetailUrl = new Map()
-
-  $('a[href*="/movies/"]').each((_, el) => {
-    const href = $(el).attr('href')
-    const detail = absolutize(url, href)
-    if (!detail) return
-    const root = $(el).closest('.item, article, .card, .movie-box, li, div')
-    const itemRoot = root.closest('.item').length ? root.closest('.item') : root
-    const poster = extractPosterFromRoot($, itemRoot, url)
-    if (poster) posterByDetailUrl.set(detail, poster)
-  })
 
   $('a[href*="/movies/"]').each((_, el) => {
     const href = $(el).attr('href')
@@ -252,12 +160,9 @@ function parsePage(html, url) {
     )
     if (!title || title.length < 2) return
 
-    const poster = extractPosterFromRoot($, itemRoot, url) || posterByDetailUrl.get(detail) || null
-
     rows.push({
       name: title,
       url: detail,
-      poster,
       description: sanitizeText(itemRoot.find('p,.description,.lead').first().text()),
       releaseInfo: sanitizeText(itemRoot.find('time').attr('datetime') || itemRoot.find('time').text()),
       imdbId: extractImdbId(itemRoot.text())
@@ -280,7 +185,6 @@ function dedupe(rows) {
     map.set(key, {
       ...prev,
       name: prev.name || row.name,
-      poster: prev.poster || row.poster,
       description: prev.description || row.description,
       releaseInfo: prev.releaseInfo || row.releaseInfo,
       imdbId: prev.imdbId || row.imdbId
@@ -292,12 +196,12 @@ function dedupe(rows) {
 function toMeta(row, { type = 'movie' } = {}) {
   const imdbId = row.imdbId || extractImdbId(row.url)
   const id = toId(row.url, imdbId)
-  const cinemetaPoster = imdbId ? `https://images.metahub.space/poster/medium/${imdbId}/img` : null
+  const poster = imdbId ? `https://images.metahub.space/poster/medium/${imdbId}/img` : undefined
   return {
     id,
     type,
     name: normalizeTitle(row.name),
-    poster: cinemetaPoster || row.poster || undefined,
+    poster,
     description: row.description || undefined,
     releaseInfo: row.releaseInfo || undefined,
     imdb_id: imdbId || undefined,
@@ -315,8 +219,8 @@ function dedupeMetasByName(metas) {
       continue
     }
     const prev = map.get(norm)
-    const prevScore = (prev.poster ? 1 : 0) + (prev.description ? 1 : 0) + (prev.imdb_id ? 1 : 0)
-    const currScore = (m.poster ? 1 : 0) + (m.description ? 1 : 0) + (m.imdb_id ? 1 : 0)
+    const prevScore = (prev.description ? 1 : 0) + (prev.imdb_id ? 1 : 0)
+    const currScore = (m.description ? 1 : 0) + (m.imdb_id ? 1 : 0)
     map.set(norm, {
       ...(currScore > prevScore ? m : prev),
       poster: prev.poster || m.poster,
@@ -358,19 +262,11 @@ async function fetchCatalog({ type = 'movie', catalogId = 'hu-mixed', genre, ski
     concurrency: Number(process.env.MAFAB_ENRICH_CONCURRENCY || 4)
   })
 
-  const metaType = catalogId === 'mafab-series' || type === 'series' ? 'series' : 'movie'
+  const metaType = catalogId === 'mafab-series' || catalogId === 'mafab-series-lists' || catalogId === 'mafab-tv' || type === 'series' ? 'series' : 'movie'
   let metas = enrichedRows.map((row) => toMeta(row, { type: metaType }))
 
-  // Only filter out items without a name (truly invalid data)
   metas = metas.filter((m) => Boolean(m.name))
-
-  // Deduplicate by normalized name to catch items with different URLs but same content
   metas = dedupeMetasByName(metas)
-
-  // Sort by poster availability - items with posters first
-  const withPoster = metas.filter((m) => Boolean(m.poster))
-  const withoutPoster = metas.filter((m) => !m.poster)
-  metas = [...withPoster, ...withoutPoster]
 
   if (genre) {
     const g = genre.toLowerCase()
@@ -387,30 +283,17 @@ async function fetchCatalog({ type = 'movie', catalogId = 'hu-mixed', genre, ski
   }
 }
 
-async function enrichMetaPoster(meta) {
-  if (!meta || meta.poster || !meta.website) return meta
-  const hints = await fetchDetailHints(meta.website)
-  if (hints?.poster) {
-    meta.poster = hints.poster
-    META_CACHE.set(meta.id, meta)
-  }
-  return meta
-}
-
 async function fetchMeta({ id }) {
-  if (META_CACHE.has(id)) {
-    return { meta: await enrichMetaPoster(META_CACHE.get(id)) }
-  }
+  if (META_CACHE.has(id)) return { meta: META_CACHE.get(id) }
   const c = await fetchCatalog({ limit: 200, skip: 0 })
   const meta = c.metas.find((m) => m.id === id) || null
-  return { meta: await enrichMetaPoster(meta) }
+  return { meta }
 }
 
 async function fetchStreams({ type, id, config }) {
   if (config?.features?.externalLinks === false) return { streams: [] }
   const { meta } = await fetchMeta({ id })
   if (!meta?.website) return { streams: [] }
-  // Avoid duplicate streams when the same ID appears in both movie and series catalogs
   if (type && meta.type && type !== meta.type) return { streams: [] }
   return {
     streams: [
@@ -435,11 +318,8 @@ module.exports = {
   SOURCE_NAME,
   _internals: {
     CATALOG_SOURCES,
-    extractPosterFromRoot,
-    upscalePosterUrl,
     parsePage,
     parseDetailHints,
-    posterQualityScore,
     toMeta
   }
 }

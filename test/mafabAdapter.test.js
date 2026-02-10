@@ -1,6 +1,5 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const cheerio = require('cheerio')
 
 const { _internals } = require('../src/mafabAdapter')
 
@@ -14,46 +13,61 @@ test('mafab catalog source URLs always use www host to avoid redirect loops', ()
   }
 })
 
-test('parsePage extracts poster from lazy background image data-src', () => {
+test('parsePage extracts title and url from movie link', () => {
   const html = `
     <div class="item">
-      <div class="image lazyNbg" data-src="/static/thumb/w150/profiles/2016/66/20/2551.jpg" style="background-image:url();"></div>
       <div class="title"><a href="/movies/a-keresztapa-2551.html" title="A keresztapa">A keresztapa</a></div>
     </div>
   `
 
   const rows = _internals.parsePage(html, 'https://www.mafab.hu/filmek/filmek/')
   assert.equal(rows.length, 1)
-  assert.equal(rows[0].poster, 'https://www.mafab.hu/static/thumb/w500/profiles/2016/66/20/2551.jpg')
+  assert.equal(rows[0].name, 'A keresztapa')
+  assert.equal(rows[0].url, 'https://www.mafab.hu/movies/a-keresztapa-2551.html')
 })
 
-test('extractPosterFromRoot prefers larger srcset candidate', () => {
-  const $ = cheerio.load(`
+test('parsePage does not extract poster fields', () => {
+  const html = `
     <div class="item">
-      <img data-srcset="/static/thumb/w150/profiles/a.jpg 150w, /static/thumb/w500/profiles/a.jpg 500w" />
-      <a href="/movies/test-1.html">Test</a>
+      <div class="image lazyNbg" data-src="/static/thumb/w150/profiles/2016/66/20/2551.jpg"></div>
+      <div class="title"><a href="/movies/a-keresztapa-2551.html" title="A keresztapa">A keresztapa</a></div>
     </div>
-  `)
+  `
 
-  const poster = _internals.extractPosterFromRoot($, $('.item').first(), 'https://www.mafab.hu/filmek/filmek/')
-  assert.equal(poster, 'https://www.mafab.hu/static/thumb/w500/profiles/a.jpg')
+  const rows = _internals.parsePage(html, 'https://www.mafab.hu/filmek/filmek/')
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].poster, undefined)
 })
 
-test('upscalePosterUrl does not downgrade already-large thumbnails', () => {
-  const url = 'https://www.mafab.hu/static/thumb/w1000/2019t/126/01/323732_1557184290.7753.jpg'
-  assert.equal(_internals.upscalePosterUrl(url), url)
+test('parsePage extracts imdb id from item text', () => {
+  const html = `
+    <div class="item">
+      <a href="/movies/a-keresztapa-2551.html" title="A keresztapa">A keresztapa</a>
+      <span>tt0068646</span>
+    </div>
+  `
+
+  const rows = _internals.parsePage(html, 'https://www.mafab.hu/filmek/filmek/')
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].imdbId, 'tt0068646')
 })
 
-test('posterQualityScore prefers real poster/profile image over scene thumb', () => {
-  const scene = 'https://www.mafab.hu/static/thumb/w1000/2019t/126/01/323732_1557184290.7753.jpg'
-  const poster = 'https://www.mafab.hu/static/profiles/2014/317/10/237638.jpg'
-  assert.ok(_internals.posterQualityScore(poster) > _internals.posterQualityScore(scene))
+test('parsePage extracts description from paragraph', () => {
+  const html = `
+    <div class="item">
+      <a href="/movies/a-keresztapa-2551.html" title="A keresztapa">A keresztapa</a>
+      <p>Classic mafia drama about the Corleone family.</p>
+    </div>
+  `
+
+  const rows = _internals.parsePage(html, 'https://www.mafab.hu/filmek/filmek/')
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].description, 'Classic mafia drama about the Corleone family.')
 })
 
-test('parseDetailHints extracts high-quality og:image and imdb id', () => {
+test('parseDetailHints extracts imdb id and description', () => {
   const html = `
     <html><head>
-      <meta property="og:image" content="https://www.mafab.hu/static/profiles/2016/66/20/2551.jpg" />
       <meta property="og:description" content="Classic mafia drama." />
       <meta property="og:title" content="The Godfather" />
     </head><body>
@@ -62,25 +76,10 @@ test('parseDetailHints extracts high-quality og:image and imdb id', () => {
   `
 
   const hints = _internals.parseDetailHints(html, 'https://www.mafab.hu/movies/a-keresztapa-2551.html')
-  assert.equal(hints.poster, 'https://www.mafab.hu/static/profiles/2016/66/20/2551.jpg')
   assert.equal(hints.imdbId, 'tt0068646')
   assert.equal(hints.name, 'The Godfather')
-})
-
-test('parsePage reuses poster found on duplicate movie link blocks', () => {
-  const html = `
-    <div class="item">
-      <a href="/movies/chernobyl-323732.html"><div class="image lazyNbg" data-src="https://www.mafab.hu/static/thumb/w1000/2019t/126/01/323732_1557184290.7753.jpg"></div></a>
-    </div>
-    <div class="item">
-      <div class="title"><a href="/movies/chernobyl-323732.html" title="Csernobil (2019)">Csernobil (2019)</a></div>
-    </div>
-  `
-
-  const rows = _internals.parsePage(html, 'https://www.mafab.hu/sorozatok/sorozatok/')
-  const chernobyl = rows.find((r) => /chernobyl-323732/.test(r.url))
-  assert.ok(chernobyl)
-  assert.equal(chernobyl.poster, 'https://www.mafab.hu/static/thumb/w1000/2019t/126/01/323732_1557184290.7753.jpg')
+  assert.equal(hints.description, 'Classic mafia drama.')
+  assert.equal(hints.poster, undefined)
 })
 
 test('toMeta strips numeric prefix from bad streaming title names', () => {
@@ -92,15 +91,23 @@ test('toMeta strips numeric prefix from bad streaming title names', () => {
   assert.equal(meta.name, 'Marty Supreme')
 })
 
-test('toMeta prefers Cinemeta poster when imdb id exists', () => {
+test('toMeta uses Cinemeta poster when imdb id exists', () => {
   const meta = _internals.toMeta({
     name: 'The Godfather',
     imdbId: 'tt0068646',
-    url: 'https://www.mafab.hu/movies/a-keresztapa-2551.html',
-    poster: 'https://www.mafab.hu/static/profiles/2016/66/20/2551.jpg'
+    url: 'https://www.mafab.hu/movies/a-keresztapa-2551.html'
   })
 
   assert.equal(meta.poster, 'https://images.metahub.space/poster/medium/tt0068646/img')
+})
+
+test('toMeta has no poster when imdb id is missing', () => {
+  const meta = _internals.toMeta({
+    name: 'Ismeretlen film',
+    url: 'https://www.mafab.hu/movies/ismeretlen-film-1.html'
+  })
+
+  assert.equal(meta.poster, undefined)
 })
 
 test('toMeta supports series type for Mafab series catalog', () => {
@@ -114,4 +121,23 @@ test('toMeta supports series type for Mafab series catalog', () => {
   )
 
   assert.equal(meta.type, 'series')
+})
+
+test('toMeta generates mafab: prefixed id when no imdb id', () => {
+  const meta = _internals.toMeta({
+    name: 'Ismeretlen film',
+    url: 'https://www.mafab.hu/movies/ismeretlen-film-1.html'
+  })
+
+  assert.equal(meta.id, 'mafab:ismeretlen-film-1')
+})
+
+test('toMeta uses imdb id as the meta id when available', () => {
+  const meta = _internals.toMeta({
+    name: 'The Godfather',
+    imdbId: 'tt0068646',
+    url: 'https://www.mafab.hu/movies/a-keresztapa-2551.html'
+  })
+
+  assert.equal(meta.id, 'tt0068646')
 })
