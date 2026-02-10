@@ -39,6 +39,11 @@ test('extractPosterFromRoot prefers larger srcset candidate', () => {
   assert.equal(poster, 'https://www.mafab.hu/static/thumb/w500/profiles/a.jpg')
 })
 
+test('upscalePosterUrl does not downgrade already-large thumbnails', () => {
+  const url = 'https://www.mafab.hu/static/thumb/w1000/2019t/126/01/323732_1557184290.7753.jpg'
+  assert.equal(_internals.upscalePosterUrl(url), url)
+})
+
 test('parseDetailHints extracts high-quality og:image and imdb id', () => {
   const html = `
     <html><head>
@@ -69,5 +74,5 @@ test('parsePage reuses poster found on duplicate movie link blocks', () => {
   const rows = _internals.parsePage(html, 'https://www.mafab.hu/sorozatok/sorozatok/')
   const chernobyl = rows.find((r) => /chernobyl-323732/.test(r.url))
   assert.ok(chernobyl)
-  assert.equal(chernobyl.poster, 'https://www.mafab.hu/static/thumb/w500/2019t/126/01/323732_1557184290.7753.jpg')
+  assert.equal(chernobyl.poster, 'https://www.mafab.hu/static/thumb/w1000/2019t/126/01/323732_1557184290.7753.jpg')
 })

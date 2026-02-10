@@ -66,6 +66,13 @@ function pickBestSrcFromSrcset(srcset) {
 function upscalePosterUrl(posterUrl) {
   const url = String(posterUrl || '')
   if (!url) return null
+  const m = url.match(/\/static\/thumb\/w(\d+)\//i)
+  if (!m) return url
+
+  const width = Number(m[1] || 0)
+  if (!Number.isFinite(width) || width <= 0) return url
+  if (width >= 500) return url
+
   return url.replace(/\/static\/thumb\/w\d+\//i, '/static/thumb/w500/')
 }
 
@@ -194,17 +201,7 @@ function parsePage(html, url) {
     if (poster) posterByDetailUrl.set(detail, poster)
   })
 
-  // Support multiple URL patterns for different Mafab categories
-  const selectors = [
-    'a[href*="/movies/"]',
-    'a[href*="/series/"]',
-    'a[href*="/film/"]',
-    'a[href*="/filmek/"]',
-    'a[href*="/sorozat/"]',
-    'a[href*="/sorozatok/"]'
-  ].join(', ')
-
-  $(selectors).each((_, el) => {
+  $('a[href*="/movies/"]').each((_, el) => {
     const href = $(el).attr('href')
     const detail = absolutize(url, href)
     if (!detail) return
