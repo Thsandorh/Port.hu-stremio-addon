@@ -72,6 +72,7 @@ function decodeConfig(token) {
 }
 
 module.exports = {
+  MAFAB_CATALOG_IDS,
   defaultConfig,
   normalizeConfig,
   encodeConfig,
