@@ -337,12 +337,15 @@ async function fetchCatalog({ type = 'movie', catalogId = 'hu-mixed', genre, ski
 
   const metaType = catalogId === 'mafab-series' || type === 'series' ? 'series' : 'movie'
   let metas = enrichedRows.map((row) => toMeta(row, { type: metaType }))
-  metas = metas.filter((m) => Boolean(m.poster) && Boolean(m.website))
-  metas = metas.sort((a, b) => {
-    const ap = a.poster ? 1 : 0
-    const bp = b.poster ? 1 : 0
-    return bp - ap
-  })
+
+  // Only filter out items without a name (truly invalid data)
+  metas = metas.filter((m) => Boolean(m.name))
+
+  // Sort by poster availability - items with posters first
+  const withPoster = metas.filter((m) => Boolean(m.poster))
+  const withoutPoster = metas.filter((m) => !m.poster)
+  metas = [...withPoster, ...withoutPoster]
+
   if (genre) {
     const g = genre.toLowerCase()
     metas = metas.filter((m) => (m.description || '').toLowerCase().includes(g) || (m.name || '').toLowerCase().includes(g))

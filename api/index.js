@@ -80,6 +80,25 @@ function renderConfigureHtml(origin, config) {
   const stremioManifest = manifestUrl.replace(/^https?:\/\//, '')
   const stremioUrl = `stremio://${stremioManifest}`
 
+  const MAFAB_CATALOG_NAMES = {
+    'mafab-movies': 'Filmek',
+    'mafab-series': 'Sorozatok',
+    'mafab-streaming': 'Top streaming',
+    'mafab-cinema': 'Moziban most',
+    'mafab-cinema-soon': 'Hamarosan a moziban',
+    'mafab-tv': 'TV kínálat',
+    'mafab-movies-lists': 'Filmes listák',
+    'mafab-series-lists': 'Sorozat listák',
+    'mafab-streaming-premieres': 'Streaming premierek'
+  }
+
+  const mafabCatalogCheckboxes = MAFAB_CATALOG_IDS.map(
+    (id) =>
+      `<div class="card"><label><input type="checkbox" class="mafab-cat" data-id="${id}" ${
+        config.mafabCatalogs?.[id] !== false ? 'checked' : ''
+      }> ${MAFAB_CATALOG_NAMES[id] || id}</label></div>`
+  ).join('\n      ')
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -119,6 +138,12 @@ function renderConfigureHtml(origin, config) {
 
     <h3>Manifest URL</h3>
     <code id="manifestUrl">${manifestUrl}</code>
+
+    <h3>Támogatás & Közösség</h3>
+    <p>Csatlakozz a Discord szerverünkhöz kérdésekkel, javasolatokkal vagy problémákkal:</p>
+    <div class="actions">
+      <a class="btn" href="https://discord.gg/GnKRAwwdcQ" target="_blank">Discord Szerver</a>
+    </div>
   </div>
 
 <script>
