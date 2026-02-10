@@ -194,7 +194,17 @@ function parsePage(html, url) {
     if (poster) posterByDetailUrl.set(detail, poster)
   })
 
-  $('a[href*="/movies/"]').each((_, el) => {
+  // Support multiple URL patterns for different Mafab categories
+  const selectors = [
+    'a[href*="/movies/"]',
+    'a[href*="/series/"]',
+    'a[href*="/film/"]',
+    'a[href*="/filmek/"]',
+    'a[href*="/sorozat/"]',
+    'a[href*="/sorozatok/"]'
+  ].join(', ')
+
+  $(selectors).each((_, el) => {
     const href = $(el).attr('href')
     const detail = absolutize(url, href)
     if (!detail) return
