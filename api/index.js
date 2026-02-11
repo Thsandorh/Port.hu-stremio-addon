@@ -81,15 +81,27 @@ function renderConfigureHtml(origin, config) {
   const stremioUrl = `stremio://${stremioManifest}`
 
   const MAFAB_CATALOG_NAMES = {
-    'mafab-movies': 'Filmek',
-    'mafab-series': 'Sorozatok',
-    'mafab-streaming': 'Top streaming',
-    'mafab-cinema': 'Moziban most',
-    'mafab-cinema-soon': 'Hamarosan a moziban',
-    'mafab-tv': 'TV kínálat',
-    'mafab-movies-lists': 'Filmes listák',
-    'mafab-series-lists': 'Sorozat listák',
-    'mafab-streaming-premieres': 'Streaming premierek'
+    'mafab-movies': 'Movies',
+    'mafab-series': 'Series',
+    'mafab-streaming': 'Top Streaming',
+    'mafab-cinema': 'In Cinemas Now',
+    'mafab-cinema-soon': 'Coming Soon (Cinema)',
+    'mafab-tv': 'TV Catalog',
+    'mafab-movies-lists': 'Movie Lists',
+    'mafab-series-lists': 'Series Lists',
+    'mafab-streaming-premieres': 'Streaming Premieres',
+    'mafab-streaming-netflix': 'Top Streaming / Netflix',
+    'mafab-streaming-hbo': 'Top Streaming / HBO Max',
+    'mafab-streaming-telekom-tvgo': 'Top Streaming / Telekom TVGO',
+    'mafab-streaming-cinego': 'Top Streaming / Cinego',
+    'mafab-streaming-filmio': 'Top Streaming / Filmio',
+    'mafab-streaming-amazon': 'Top Streaming / Amazon Prime Video',
+    'mafab-streaming-apple-tv': 'Top Streaming / Apple TV+',
+    'mafab-streaming-disney': 'Top Streaming / Disney+',
+    'mafab-streaming-skyshowtime': 'Top Streaming / SkyShowtime',
+    'mafab-year-window': 'Movies (Previous + Current Year)',
+    'mafab-best-current-year': 'Best Movies (Current Year)',
+    'mafab-total-gross': 'Total Gross (Previous + Current Year)'
   }
 
   const mafabCatalogCheckboxes = MAFAB_CATALOG_IDS.map(
@@ -104,7 +116,7 @@ function renderConfigureHtml(origin, config) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Configure HU Catalog Addon</title>
+  <title>Configure Flix-Catalogs Addon</title>
   <style>
     body { font-family: Inter, Arial, sans-serif; background:#0b1020; color:#e8ecff; margin:0; }
     .wrap { max-width:760px; margin:40px auto; padding:24px; background:#121a35; border-radius:14px; }
@@ -119,19 +131,19 @@ function renderConfigureHtml(origin, config) {
 </head>
 <body>
   <div class="wrap">
-    <h1>Configure HU Movies & Series Addon</h1>
-    <p>Select sources and enabled Mafab catalogs. Defaults: all Mafab categories active and external links active.</p>
+    <h1>Configure Flix-Catalogs Addon</h1>
+    <p>Select sources and enabled Mafab catalogs. Defaults: all Mafab catalogs enabled and external links enabled.</p>
 
     <form id="cfgForm">
       <div class="card"><label><input type="checkbox" id="src_mafab" ${config.sources.mafab ? 'checked' : ''}> Mafab.hu</label></div>
       <div class="card"><label><input type="checkbox" id="src_porthu" ${config.sources.porthu ? 'checked' : ''}> Port.hu</label></div>
-      <h3>Mafab categories</h3>
+      <h3>Mafab catalogs</h3>
       ${mafabCatalogCheckboxes}
       <h3>Stream links</h3>
       <div class="card"><label><input type="checkbox" id="feature_externalLinks" ${config.features?.externalLinks !== false ? 'checked' : ''}> Enable external links (Mafab + Ko-fi)</label></div>
 
       <div class="actions">
-        <button type="submit">Generate links</button>
+        <button type="submit">Generate Links</button>
         <a class="btn" id="installBtn" href="${stremioUrl}">Install in Stremio</a>
       </div>
     </form>
@@ -139,10 +151,10 @@ function renderConfigureHtml(origin, config) {
     <h3>Manifest URL</h3>
     <code id="manifestUrl">${manifestUrl}</code>
 
-    <h3>Támogatás & Közösség</h3>
-    <p>Csatlakozz a Discord szerverünkhöz kérdésekkel, javasolatokkal vagy problémákkal:</p>
+    <h3>Support & Community</h3>
+    <p>Join our Discord server for questions, suggestions, or issues:</p>
     <div class="actions">
-      <a class="btn" href="https://discord.gg/GnKRAwwdcQ" target="_blank">Discord Szerver</a>
+      <a class="btn" href="https://discord.gg/GnKRAwwdcQ" target="_blank">Discord Server</a>
     </div>
   </div>
 

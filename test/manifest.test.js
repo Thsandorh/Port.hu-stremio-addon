@@ -42,3 +42,11 @@ test('manifest keeps Mafab and Port.hu catalogs separate when both enabled', () 
   assert.ok(ids.includes('mafab-movies'))
   assert.ok(!ids.includes('hu-mixed'))
 })
+
+
+test('manifest branding is Flix-Catalogs with icon', () => {
+  const manifest = createManifest({ sources: { mafab: true, porthu: false } })
+  assert.equal(manifest.name, 'Flix-Catalogs')
+  assert.equal(manifest.id, 'community.flix.catalogs')
+  assert.match(manifest.logo, /^data:image\/svg\+xml;base64,/) 
+})

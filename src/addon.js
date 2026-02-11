@@ -12,5 +12,5 @@ const server = http.createServer((req, res) => {
 })
 
 server.listen(port, () => {
-  console.log(`HU Catalog addon ready at http://127.0.0.1:${port}/configure`)
+  console.log(`Flix-Catalogs addon ready at http://127.0.0.1:${port}/configure`)
 })
