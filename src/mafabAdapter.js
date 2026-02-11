@@ -1,5 +1,7 @@
 const axios = require('axios')
 const cheerio = require('cheerio')
+const { execFile } = require('node:child_process')
+const { promisify } = require('node:util')
 
 const SOURCE_NAME = 'mafab.hu'
 const CATALOG_SOURCES = {
@@ -33,6 +35,30 @@ const DEFAULT_TMDB_API_KEY = 'ffe7ef8916c61835264d2df68276ddc2'
 const META_CACHE = new Map()
 const AUTOCOMPLETE_CACHE = new Map()
 const TMDB_CACHE = new Map()
+
+const execFileAsync = promisify(execFile)
+
+async function fetchMafabText(url, { params = null, useAjaxHeaders = false } = {}) {
+  const args = ['-sL', '--max-time', String(Math.ceil(Number(process.env.MAFAB_HTTP_TIMEOUT_MS || 12000) / 1000) || 12)]
+  args.push('-A', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36')
+  args.push('-H', 'Accept-Language: hu-HU,hu;q=0.9,en;q=0.8')
+  if (useAjaxHeaders) {
+    args.push('-H', 'Referer: https://www.mafab.hu/')
+    args.push('-H', 'X-Requested-With: XMLHttpRequest')
+  }
+
+  if (params && Object.keys(params).length) {
+    args.push('--get', url)
+    for (const [key, value] of Object.entries(params)) {
+      args.push('--data-urlencode', `${key}=${value == null ? '' : String(value)}`)
+    }
+  } else {
+    args.push(url)
+  }
+
+  const { stdout } = await execFileAsync('curl', args, { maxBuffer: 8 * 1024 * 1024 })
+  return String(stdout || '')
+}
 
 const http = axios.create({
   timeout: Number(process.env.MAFAB_HTTP_TIMEOUT_MS || 12000),
@@ -178,16 +204,12 @@ async function searchAutocomplete(term) {
   if (AUTOCOMPLETE_CACHE.has(key)) return AUTOCOMPLETE_CACHE.get(key)
 
   try {
-    const res = await http.get(AUTOCOMPLETE_ENDPOINT, {
+    const raw = await fetchMafabText(AUTOCOMPLETE_ENDPOINT, {
       params: { term: query, v: 21 },
-      headers: {
-        Referer: 'https://www.mafab.hu/',
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      responseType: 'text'
+      useAjaxHeaders: true
     })
 
-    const parsed = parseAutocompletePayload(res.data)
+    const parsed = parseAutocompletePayload(raw)
     AUTOCOMPLETE_CACHE.set(key, parsed)
     return parsed
   } catch {
@@ -291,9 +313,7 @@ function parsePage(html, pageUrl) {
     })
   })
 
-  const workers = Array.from({ length: Math.max(1, concurrency) }, () => worker())
-  await Promise.allSettled(workers)
-  return out
+  return rows
 }
 
 async function enrichRows(rows, { type = 'movie', maxItems = 30, concurrency = 4 } = {}) {
@@ -382,7 +402,7 @@ async function fetchCatalog({ type = 'movie', catalogId = 'hu-mixed', genre, ski
   if (catalogId.startsWith('porthu-')) return { source: SOURCE_NAME, metas: [] }
   const urls = CATALOG_SOURCES[catalogId] || SOURCE_URLS
 
-  const settled = await Promise.allSettled(urls.map((u) => http.get(u)))
+  const settled = await Promise.allSettled(urls.map(async (u) => ({ data: await fetchMafabText(u) })))
   const rows = []
   const warnings = []
 
