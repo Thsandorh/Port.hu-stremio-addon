@@ -177,7 +177,7 @@ function renderConfigureHtml(origin, config) {
     bytes.forEach((byte) => {
       binary += String.fromCharCode(byte)
     })
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+    return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/g, '')
   }
 
   function buildConfig() {
@@ -206,7 +206,7 @@ function renderConfigureHtml(origin, config) {
     const configurePath = useTokenizedPath ? '/' + token + '/configure' : '/configure'
     const manifest = location.origin + manifestPath
     manifestEl.textContent = manifest
-    installBtn.href = 'stremio://' + manifest.replace(/^https?:\/\//, '')
+    installBtn.href = 'stremio://' + manifest.replace(/^https?:\\/\\//, '')
     history.replaceState(null, '', configurePath)
   }
 
