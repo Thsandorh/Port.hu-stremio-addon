@@ -28,7 +28,7 @@ test('getRequestOrigin falls back to host header', () => {
 
 test('configure html stremio link does not include nested https protocol', () => {
   const html = renderConfigureHtml('https://porthu-addon.vercel.app', {
-    sources: { mafab: true, porthu: false }
+    sources: { mafab: true }
   })
 
   assert.match(html, /stremio:\/\/porthu-addon\.vercel\.app\//)
@@ -36,7 +36,7 @@ test('configure html stremio link does not include nested https protocol', () =>
 })
 
 test('tokenized manifest endpoint returns catalogs without server error', async () => {
-  const token = encodeConfig({ sources: { mafab: true, porthu: false } })
+  const token = encodeConfig({ sources: { mafab: true } })
   const req = {
     url: `/${token}/manifest.json`,
     headers: { host: 'localhost:7000' }

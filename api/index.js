@@ -132,18 +132,16 @@ function renderConfigureHtml(origin, config) {
 <body>
   <div class="wrap">
     <h1>Configure Flix-Catalogs Addon</h1>
-    <p>Select sources and enabled Mafab catalogs. Defaults: all Mafab catalogs enabled and external links enabled.</p>
+    <p>Select enabled Mafab catalogs. Manifest and install links update automatically.</p>
 
     <form id="cfgForm">
       <div class="card"><label><input type="checkbox" id="src_mafab" ${config.sources.mafab ? 'checked' : ''}> Mafab.hu</label></div>
-      <div class="card"><label><input type="checkbox" id="src_porthu" ${config.sources.porthu ? 'checked' : ''}> Port.hu</label></div>
       <h3>Mafab catalogs</h3>
       ${mafabCatalogCheckboxes}
       <h3>Stream links</h3>
       <div class="card"><label><input type="checkbox" id="feature_externalLinks" ${config.features?.externalLinks !== false ? 'checked' : ''}> Enable external links (Mafab + Ko-fi)</label></div>
 
       <div class="actions">
-        <button type="submit">Generate Links</button>
         <a class="btn" id="installBtn" href="${stremioUrl}">Install in Stremio</a>
       </div>
     </form>
@@ -152,9 +150,10 @@ function renderConfigureHtml(origin, config) {
     <code id="manifestUrl">${manifestUrl}</code>
 
     <h3>Support & Community</h3>
-    <p>Join our Discord server for questions, suggestions, or issues:</p>
+    <p>If this addon is useful for you, you can support development or join the community:</p>
     <div class="actions">
-      <a class="btn" href="https://discord.gg/GnKRAwwdcQ" target="_blank">Discord Server</a>
+      <a class="btn" href="https://ko-fi.com/thsandorh" target="_blank" rel="noopener noreferrer">Support on Ko-fi</a>
+      <a class="btn ghost" href="https://discord.gg/GnKRAwwdcQ" target="_blank" rel="noopener noreferrer">Discord Server</a>
     </div>
   </div>
 
@@ -163,12 +162,10 @@ function renderConfigureHtml(origin, config) {
   const installBtn = document.getElementById('installBtn')
   const manifestEl = document.getElementById('manifestUrl')
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault()
+  function buildConfig() {
     const cfg = {
       sources: {
-        mafab: document.getElementById('src_mafab').checked,
-        porthu: document.getElementById('src_porthu').checked
+        mafab: document.getElementById('src_mafab').checked
       },
       mafabCatalogs: {},
       features: {
@@ -180,11 +177,19 @@ function renderConfigureHtml(origin, config) {
       cfg.mafabCatalogs[el.dataset.id] = el.checked
     })
 
+    return cfg
+  }
+
+  function updateLinks() {
+    const cfg = buildConfig()
     const token = btoa(JSON.stringify(cfg)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
     const manifest = location.origin + '/' + token + '/manifest.json'
     manifestEl.textContent = manifest
     installBtn.href = 'stremio://' + manifest.replace(/^https?:\/\//, '')
-  })
+  }
+
+  form.addEventListener('change', updateLinks)
+  updateLinks()
 </script>
 </body>
 </html>`

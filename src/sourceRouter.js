@@ -1,16 +1,13 @@
-const porthu = require('./porthuAdapter')
 const mafab = require('./mafabAdapter')
 
 function selectedAdapters(config) {
   const adapters = []
   if (config?.sources?.mafab) adapters.push(mafab)
-  if (config?.sources?.porthu) adapters.push(porthu)
   return adapters
 }
 
 function adaptersForCatalog(config, catalogId) {
   if (String(catalogId || '').startsWith('mafab-')) return config?.sources?.mafab ? [mafab] : []
-  if (String(catalogId || '').startsWith('porthu-')) return config?.sources?.porthu ? [porthu] : []
   return []
 }
 

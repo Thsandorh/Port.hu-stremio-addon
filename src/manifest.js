@@ -33,7 +33,6 @@ function createManifest(config) {
 
   const sources = []
   if (sourcesConfig.mafab) sources.push('Mafab')
-  if (sourcesConfig.porthu) sources.push('Port.hu')
 
   const manifestCatalogs = []
 
@@ -46,15 +45,6 @@ function createManifest(config) {
     }
   }
 
-  if (sourcesConfig.porthu) {
-    manifestCatalogs.push({
-      type: 'movie',
-      id: 'porthu-mixed',
-      name: 'Port.hu: Movies & Series',
-      extra: [{ name: 'genre' }, { name: 'skip' }]
-    })
-  }
-
 
   return {
     id: 'community.flix.catalogs',
@@ -63,7 +53,7 @@ function createManifest(config) {
     description: `Configurable catalogs from ${sources.length ? sources.join(' + ') : 'selected sources'}.`,
     resources: ['catalog', 'meta', 'stream'],
     types: ['movie', 'series'],
-    idPrefixes: ['tt', 'mafab:', 'porthu:'],
+    idPrefixes: ['tt', 'mafab:'],
     logo: ICON_DATA_URI,
     catalogs: manifestCatalogs,
     behaviorHints: {

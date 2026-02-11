@@ -1,14 +1,13 @@
 # Flix-Catalogs (Stremio Addon)
 
-Configurable Stremio addon for Hungarian-focused catalogs from **Mafab.hu** and **Port.hu**, with provider-split streaming catalogs and dynamic year-window catalogs.
+Configurable Stremio addon powered by **Mafab.hu** catalogs, with provider-split streaming catalogs and dynamic year-window catalogs.
 
 ## Highlights
 
 - Addon name/branding: **Flix-Catalogs**
 - Configure UI at `/configure` with source toggles and per-catalog toggles
 - Source selection:
-  - ✅ Mafab.hu (enabled by default)
-  - ⬜ Port.hu (disabled by default)
+  - ✅ Mafab.hu
 - Provider-split Mafab streaming catalogs:
   - Netflix, HBO Max, Telekom TVGO, Cinego, Filmio, Amazon Prime Video, Apple TV+, Disney+, SkyShowtime
 - Dynamic Mafab year catalogs:
@@ -40,8 +39,7 @@ Example config object:
 ```json
 {
   "sources": {
-    "mafab": true,
-    "porthu": false
+    "mafab": true
   },
   "mafabCatalogs": {
     "mafab-movies": true,
@@ -65,10 +63,6 @@ Example config object:
 - `MAFAB_YEAR_TO` (optional override for current year boundary)
 - `TMDB_API_KEY` (preferred TMDB key)
 - `MAFAB_TMDB_API_KEY` (fallback TMDB key)
-- `PORT_HU_HTTP_TIMEOUT_MS` (default: `12000`)
-- `PORT_HU_PAGE_CACHE_TTL_MS` (default: `600000`)
-- `PORT_HU_CATALOG_CACHE_TTL_MS` (default: `300000`)
-- `PORT_HU_DETAIL_CONCURRENCY` (default: `8`)
 
 ## Quick verification commands
 

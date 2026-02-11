@@ -3,8 +3,8 @@ const assert = require('node:assert/strict')
 
 const { createManifest } = require('../src/manifest')
 
-test('manifest exposes Mafab category catalogs when only mafab is enabled', () => {
-  const manifest = createManifest({ sources: { mafab: true, porthu: false } })
+test('manifest exposes Mafab category catalogs when mafab is enabled', () => {
+  const manifest = createManifest({ sources: { mafab: true } })
   const ids = manifest.catalogs.map((c) => c.id)
   const seriesCatalog = manifest.catalogs.find((c) => c.id === 'mafab-series')
   const extraCatalogs = [
@@ -22,7 +22,7 @@ test('manifest exposes Mafab category catalogs when only mafab is enabled', () =
 
 test('manifest allows disabling selected Mafab catalogs from config', () => {
   const manifest = createManifest({
-    sources: { mafab: true, porthu: false },
+    sources: { mafab: true },
     mafabCatalogs: {
       'mafab-cinema-soon': false,
       'mafab-streaming-premieres': false
@@ -34,13 +34,19 @@ test('manifest allows disabling selected Mafab catalogs from config', () => {
   assert.ok(!ids.includes('mafab-streaming-premieres'))
 })
 
-test('manifest keeps Mafab and Port.hu catalogs separate when both enabled', () => {
-  const manifest = createManifest({ sources: { mafab: true, porthu: true } })
+test('manifest has no Port.hu catalog ids and prefixes', () => {
+  const manifest = createManifest({ sources: { mafab: true } })
   const ids = manifest.catalogs.map((c) => c.id)
 
-  assert.ok(ids.includes('porthu-mixed'))
-  assert.ok(ids.includes('mafab-movies'))
-  assert.ok(!ids.includes('hu-mixed'))
+  assert.ok(!ids.includes('porthu-mixed'))
+  assert.ok(!manifest.idPrefixes.includes('porthu:'))
+})
+
+test('manifest branding is Flix-Catalogs with icon', () => {
+  const manifest = createManifest({ sources: { mafab: true } })
+  assert.equal(manifest.name, 'Flix-Catalogs')
+  assert.equal(manifest.id, 'community.flix.catalogs')
+  assert.match(manifest.logo, /^data:image\/svg\+xml;base64,/)
 })
 
 

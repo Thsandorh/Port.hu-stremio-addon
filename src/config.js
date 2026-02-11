@@ -27,8 +27,7 @@ function defaultConfig() {
 
   return {
     sources: {
-      mafab: true,
-      porthu: false
+      mafab: true
     },
     mafabCatalogs,
     features: {
@@ -49,8 +48,7 @@ function normalizeConfig(input = {}) {
 
   return {
     sources: {
-      mafab: input?.sources?.mafab !== undefined ? Boolean(input.sources.mafab) : d.sources.mafab,
-      porthu: input?.sources?.porthu !== undefined ? Boolean(input.sources.porthu) : d.sources.porthu
+      mafab: input?.sources?.mafab !== undefined ? Boolean(input.sources.mafab) : d.sources.mafab
     },
     mafabCatalogs: normalizedMafabCatalogs,
     features: {
