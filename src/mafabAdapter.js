@@ -4,11 +4,11 @@ const { execFile } = require('node:child_process')
 const { promisify } = require('node:util')
 
 const SOURCE_NAME = 'mafab.hu'
-const CURRENT_YEAR = Number(process.env.MAFAB_YEAR_FROM || new Date().getFullYear())
-const NEXT_YEAR = Number(process.env.MAFAB_YEAR_TO || CURRENT_YEAR + 1)
-const YEAR_FILTER_URL = `https://www.mafab.hu/filmek/filmek/1/?yrf=${CURRENT_YEAR}&yrt=${NEXT_YEAR}`
+const CURRENT_YEAR = Number(process.env.MAFAB_YEAR_TO || new Date().getFullYear())
+const PREVIOUS_YEAR = Number(process.env.MAFAB_YEAR_FROM || CURRENT_YEAR - 1)
+const YEAR_FILTER_URL = `https://www.mafab.hu/filmek/filmek/1/?yrf=${PREVIOUS_YEAR}&yrt=${CURRENT_YEAR}`
 const BEST_CURRENT_YEAR_URL = `https://www.mafab.hu/filmek/filmek/1/?yrf=${CURRENT_YEAR}&yrt=${CURRENT_YEAR}`
-const TOTAL_GROSS_URL = `https://www.mafab.hu/beveteli-listak/total_gross/normalview/?year_from=${CURRENT_YEAR}&year_to=${NEXT_YEAR}`
+const TOTAL_GROSS_URL = `https://www.mafab.hu/beveteli-listak/total_gross/normalview/?year_from=${PREVIOUS_YEAR}&year_to=${CURRENT_YEAR}`
 const CATALOG_SOURCES = {
   'mafab-movies': ['https://www.mafab.hu/filmek/filmek/'],
   'mafab-series': ['https://www.mafab.hu/sorozatok/sorozatok/'],
