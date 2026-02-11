@@ -35,6 +35,24 @@ test('configure html stremio link does not include nested https protocol', () =>
   assert.doesNotMatch(html, /stremio:\/\/https:\/\//)
 })
 
+
+test('configure html uses plain /manifest.json for default config', () => {
+  const html = renderConfigureHtml('https://porthu-addon.vercel.app', {
+    sources: { mafab: true }
+  })
+
+  assert.match(html, /<code id="manifestUrl">https:\/\/porthu-addon\.vercel\.app\/manifest\.json<\/code>/)
+  assert.match(html, /href="stremio:\/\/porthu-addon\.vercel\.app\/manifest\.json"/)
+})
+
+test('configure html uses tokenized manifest path for non-default config', () => {
+  const html = renderConfigureHtml('https://porthu-addon.vercel.app', {
+    sources: { mafab: false }
+  })
+
+  assert.match(html, /<code id="manifestUrl">https:\/\/porthu-addon\.vercel\.app\/[A-Za-z0-9_-]+\/manifest\.json<\/code>/)
+})
+
 test('tokenized manifest endpoint returns catalogs without server error', async () => {
   const token = encodeConfig({ sources: { mafab: true } })
   const req = {
@@ -62,4 +80,106 @@ test('tokenized manifest endpoint returns catalogs without server error', async 
   const payload = JSON.parse(body)
   assert.ok(Array.isArray(payload.catalogs))
   assert.ok(payload.catalogs.length > 0)
+})
+
+
+test('manifest endpoint includes stable relative logo url', async () => {
+  const token = encodeConfig({ sources: { mafab: true } })
+  const req = {
+    url: `/${token}/manifest.json`,
+    headers: {
+      'x-forwarded-proto': 'https',
+      'x-forwarded-host': 'flix.example.com'
+    }
+  }
+
+  let body = ''
+  const res = {
+    statusCode: 0,
+    setHeader() {},
+    end(chunk = '') {
+      body += chunk
+    }
+  }
+
+  await apiHandler(req, res)
+
+  assert.equal(res.statusCode, 200)
+  const payload = JSON.parse(body)
+  assert.equal(payload.logo, '/logo.svg')
+})
+
+test('logo svg endpoint returns image content type', async () => {
+  const req = {
+    url: '/logo.svg',
+    headers: { host: 'localhost:7000' }
+  }
+
+  let body = ''
+  const headers = {}
+  const res = {
+    statusCode: 0,
+    setHeader(name, value) {
+      headers[name.toLowerCase()] = value
+    },
+    end(chunk = '') {
+      body += chunk
+    }
+  }
+
+  await apiHandler(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.match(headers['content-type'], /image\/svg\+xml/)
+  assert.match(body, /<svg/)
+})
+
+
+test('manifest endpoint returns CORS headers for web fetch', async () => {
+  const req = {
+    url: '/manifest.json',
+    headers: { host: 'localhost:7000' }
+  }
+
+  let body = ''
+  const headers = {}
+  const res = {
+    statusCode: 0,
+    setHeader(name, value) {
+      headers[name.toLowerCase()] = value
+    },
+    end(chunk = '') {
+      body += chunk
+    }
+  }
+
+  await apiHandler(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(headers['access-control-allow-origin'], '*')
+  assert.match(headers['access-control-allow-methods'], /OPTIONS/)
+  assert.ok(body.includes('"catalogs"'))
+})
+
+test('options preflight returns 204 with CORS headers', async () => {
+  const req = {
+    method: 'OPTIONS',
+    url: '/manifest.json',
+    headers: { host: 'localhost:7000' }
+  }
+
+  const headers = {}
+  const res = {
+    statusCode: 0,
+    setHeader(name, value) {
+      headers[name.toLowerCase()] = value
+    },
+    end() {}
+  }
+
+  await apiHandler(req, res)
+
+  assert.equal(res.statusCode, 204)
+  assert.equal(headers['access-control-allow-origin'], '*')
+  assert.match(headers['access-control-allow-methods'], /OPTIONS/)
 })
