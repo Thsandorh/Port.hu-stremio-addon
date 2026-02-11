@@ -87,6 +87,23 @@ test('findBestAutocompleteMatch prefers exact Mafab detail URL match', () => {
   assert.equal(best.year, 1972)
 })
 
+
+test('normalizeTitle strips trailing year from display title', () => {
+  assert.equal(_internals.normalizeTitle('Egyél müzlit! (2021)'), 'Egyél müzlit!')
+})
+
+test('parsePage falls back to URL slug when scraped title is placeholder', () => {
+  const html = `
+    <div class="item">
+      <a href="/movies/the-roses-81432.html" title="Ismeretlen (2025)">Ismeretlen (2025)</a>
+    </div>
+  `
+
+  const rows = _internals.parsePage(html, 'https://www.mafab.hu/filmek/listak/')
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].name, 'The Roses')
+})
+
 test('toMeta strips numeric prefix from bad streaming title names', () => {
   const meta = _internals.toMeta({
     name: '88 Marty Supreme',
@@ -103,6 +120,15 @@ test('toMeta strips NA prefix from scraped title noise', () => {
   })
 
   assert.equal(meta.name, 'Beléd estem')
+})
+
+test('toMeta strips trailing year from title in final output', () => {
+  const meta = _internals.toMeta({
+    name: 'Egyél müzlit! (2021)',
+    url: 'https://www.mafab.hu/movies/egyel-muzlit-123.html'
+  })
+
+  assert.equal(meta.name, 'Egyél müzlit!')
 })
 
 test('toMeta uses Cinemeta poster when imdb id exists', () => {

@@ -56,13 +56,30 @@ function normalizeTitle(value) {
     .replace(/^\d{1,3}\s+(?=\p{L}|\d)/u, '')
     .replace(/^\d{1,3}%\s+(?=\p{L}|\d)/u, '')
     .replace(/^(?:n\/?a|na)\s+(?=\p{L}|\d)/iu, '')
+    .replace(/\s*\((19\d{2}|20\d{2})\)\s*$/u, '')
     .trim()
 }
 
 function normalizeLookupTitle(value) {
   return normalizeTitle(value)
-    .replace(/\s*\((19\d{2}|20\d{2})\)\s*$/u, '')
+    .replace(/^(?:ismeretlen|unknown)\b[\s:.-]*/iu, '')
     .trim()
+}
+
+function titleFromDetailUrl(url) {
+  const match = String(url || '').match(/\/movies\/([^/?#]+?)(?:-\d+)?\.html/i)
+  if (!match) return ''
+  const words = sanitizeText(match[1].replace(/[-_]+/g, ' ')).split(' ')
+  return words
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(' ')
+}
+
+function hasUsefulTitle(value) {
+  const title = normalizeLookupTitle(value)
+  if (!title || title.length < 2) return false
+  if (/^(?:ismeretlen|unknown)$/iu.test(title)) return false
+  return /\p{L}{2,}/u.test(title)
 }
 
 function normalizeForMatch(value) {
@@ -212,10 +229,13 @@ function parsePage(html, url) {
 
     const root = $(el).closest('.item, article, .card, .movie-box, li, div')
     const itemRoot = root.closest('.item').length ? root.closest('.item') : root
-    const title = normalizeTitle(
-      $(el).attr('title') || $(el).attr('aria-label') || itemRoot.find('h1,h2,h3,h4,.title').first().text() || $(el).text()
-    )
-    if (!title || title.length < 2) return
+    const rawTitle = $(el).attr('title') || $(el).attr('aria-label') || itemRoot.find('h1,h2,h3,h4,.title').first().text() || $(el).text()
+    let title = normalizeTitle(rawTitle)
+    if (!hasUsefulTitle(title)) {
+      const slugTitle = normalizeTitle(titleFromDetailUrl(detail))
+      if (hasUsefulTitle(slugTitle)) title = slugTitle
+    }
+    if (!hasUsefulTitle(title)) return
 
     rows.push({
       name: title,
@@ -293,10 +313,11 @@ function toMeta(row, { type = 'movie' } = {}) {
   const imdbId = row.imdbId || extractImdbId(row.url)
   const id = toId(row.url, imdbId)
   const poster = imdbId ? `https://images.metahub.space/poster/medium/${imdbId}/img` : undefined
+  const displayName = normalizeTitle(row.name) || normalizeTitle(titleFromDetailUrl(row.url))
   return {
     id,
     type,
-    name: normalizeTitle(row.name),
+    name: displayName,
     poster,
     description: row.description || undefined,
     releaseInfo: row.releaseInfo || undefined,
@@ -424,6 +445,9 @@ module.exports = {
     parseAutocompleteLabel,
     findBestAutocompleteMatch,
     getTmdbApiKey,
+    normalizeTitle,
+    normalizeLookupTitle,
+    titleFromDetailUrl,
     toMeta
   }
 }
